@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-dark text-light">
+    <div class="container py-5">
+        <h2 class="mb-4">Subscription Tracker Dashboard</h2>
+        
+        {% if db_error %}
+        <div class="alert alert-warning">
+            <strong>Database Notice:</strong> Make sure to run <code>schema.sql</code> in MySQL! ({{ db_error }})
+        </div>
+        {% endif %}
+
+        <div class="card bg-secondary text-white mb-4 p-3">
+            <h5>Add New Subscription</h5>
+            <form action="/add" method="POST" class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" name="service_name" class="form-control" placeholder="Service (e.g. Netflix)" required>
+                </div>
+                <div class="col-md-2">
+                    <input type="text" name="category" class="form-control" placeholder="Category">
+                </div>
+                <div class="col-md-2">
+                    <input type="number" step="0.01" name="cost" class="form-control" placeholder="Cost (₹)" required>
+                </div>
+                <div class="col-md-2">
+                    <select name="billing_cycle" class="form-select">
+                        <option value="Monthly">Monthly</option>
+                        <option value="Yearly">Yearly</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="date" name="next_renewal_date" class="form-control" required>
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary w-100">Add</button>
+                </div>
+            </form>
+        </div>
+
+        <table class="table table-dark table-striped">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Category</th>
+                    <th>Cost</th>
+                    <th>Cycle</th>
+                    <th>Next Renewal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sub in subscriptions %}
+                <tr>
+                    <td>{{ sub.service_name }}</td>
+                    <td>{{ sub.category }}</td>
+                    <td>₹{{ sub.cost }}</td>
+                    <td>{{ sub.billing_cycle }}</td>
+                    <td>{{ sub.next_renewal_date }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted">No subscriptions added yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
