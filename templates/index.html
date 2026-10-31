@@ -3,72 +3,569 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subscription Management</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Brightloop Software | Odoo Subscription & Billing Engine</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --card-bg: rgba(22, 29, 49, 0.85);
+            --accent: #714B67;
+            --accent-glow: #017E84;
+            --neon: #38bdf8;
+        }
+        body {
+            background: radial-gradient(circle at top right, #1e1b4b, #0b0f19 60%);
+            color: #e2e8f0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .glass-card:hover {
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+        .kpi-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9));
+            border-left: 4px solid var(--neon);
+        }
+        .btn-odoo {
+            background: linear-gradient(135deg, #714B67, #9b6b8e);
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+        .btn-odoo:hover {
+            background: linear-gradient(135deg, #875a7b, #b07da2);
+            color: white;
+        }
+        .btn-teal {
+            background: linear-gradient(135deg, #017E84, #00a5ad);
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+        .pipeline-step {
+            font-size: 0.78rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        .nav-pills .nav-link {
+            color: #94a3b8;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        .nav-pills .nav-link.active {
+            background: linear-gradient(135deg, #017E84, #714B67);
+            color: #fff;
+        }
+        .table-dark-custom {
+            --bs-table-bg: transparent;
+            --bs-table-color: #e2e8f0;
+            border-color: rgba(255,255,255,0.08);
+        }
+        .form-control, .form-select {
+            background-color: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+        .form-control:focus, .form-select:focus {
+            background-color: rgba(15, 23, 42, 0.95);
+            color: #fff;
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 0.2rem rgba(56, 189, 248, 0.2);
+        }
+    </style>
 </head>
-<body class="bg-dark text-light">
-    <div class="container py-5">
-        <h2 class="mb-4">Subscription Tracker Dashboard</h2>
-        
-        {% if db_error %}
-        <div class="alert alert-warning">
-            <strong>Database Notice:</strong> Make sure to run <code>schema.sql</code> in MySQL! ({{ db_error }})
+<body>
+
+<!-- Top Navigation & Live Role Switcher -->
+<nav class="navbar navbar-expand-lg border-bottom border-secondary border-opacity-25 px-4 py-3" style="background: rgba(11,15,25,0.9);">
+    <div class="container-fluid">
+        <a class="navbar-brand text-white fw-bold d-flex align-items-center gap-2" href="#">
+            <span class="badge bg-info text-dark rounded-pill px-3 py-2"><i class="fa-solid fa-rotate"></i> Brightloop</span>
+            <span>Subscription & Recurring Billing OS</span>
+            <span class="badge bg-secondary bg-opacity-50 fw-normal ms-2" style="font-size: 0.75rem;">Odoo Hackathon Edition</span>
+        </a>
+
+        <!-- Role Access Switcher (Scene 1 Requirement) -->
+        <div class="d-flex align-items-center gap-3">
+            <span class="text-secondary small"><i class="fa-solid fa-shield-halved me-1"></i> Active View Role:</span>
+            <div class="btn-group btn-group-sm">
+                <a href="/?role=Admin" class="btn {% if role == 'Admin' %}btn-info fw-bold{% else %}btn-outline-secondary text-light{% endif %}">Admin (Full Control)</a>
+                <a href="/?role=Staff" class="btn {% if role == 'Staff' %}btn-info fw-bold{% else %}btn-outline-secondary text-light{% endif %}">Internal Staff</a>
+                <a href="/?role=Customer" class="btn {% if role == 'Customer' %}btn-info fw-bold{% else %}btn-outline-secondary text-light{% endif %}">Customer Self-Portal</a>
+            </div>
+            <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#authModal">
+                <i class="fa-solid fa-user-plus me-1"></i> Test Auth & Password Policy
+            </button>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid px-4 py-4">
+
+    <!-- Flash Notifications -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm border-0" role="alert">
+                <i class="fa-solid fa-bolt me-2"></i> {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Finance Lead KPI Bar -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="glass-card kpi-card p-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-secondary small text-uppercase fw-semibold">Active Subscriptions</div>
+                        <h3 class="fw-bold text-white mb-0 mt-1">{{ metrics.active_subs }} <span class="fs-6 text-success fw-normal">Live Contracts</span></h3>
+                    </div>
+                    <div class="fs-2 text-info opacity-75"><i class="fa-solid fa-file-signature"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="glass-card kpi-card p-3" style="border-left-color: #22c55e;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-secondary small text-uppercase fw-semibold">Collected Revenue (Paid)</div>
+                        <h3 class="fw-bold text-success mb-0 mt-1">₹{{ "{:,.2f}".format(metrics.paid_rev) }}</h3>
+                    </div>
+                    <div class="fs-2 text-success opacity-75"><i class="fa-solid fa-sack-dollar"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="glass-card kpi-card p-3" style="border-left-color: #f59e0b;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-secondary small text-uppercase fw-semibold">Outstanding / Owed</div>
+                        <h3 class="fw-bold text-warning mb-0 mt-1">₹{{ "{:,.2f}".format(metrics.owed_rev) }}</h3>
+                    </div>
+                    <div class="fs-2 text-warning opacity-75"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="glass-card kpi-card p-3" style="border-left-color: #ef4444;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-secondary small text-uppercase fw-semibold">Overdue Invoices to Chase</div>
+                        <h3 class="fw-bold text-danger mb-0 mt-1">{{ metrics.overdue_count }} <span class="fs-6 text-secondary fw-normal">Action Needed</span></h3>
+                    </div>
+                    <div class="fs-2 text-danger opacity-75"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Interactive Navigation Tabs -->
+    <ul class="nav nav-pills mb-4 gap-2" id="BrightloopTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-subs">
+                <i class="fa-solid fa-layer-group me-1"></i> 1. Quotations & Subscriptions Pipeline
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-billing">
+                <i class="fa-solid fa-file-invoice-dollar me-1"></i> 2. Billing Day & Payment Matcher
+            </button>
+        </li>
+        {% if role == 'Admin' %}
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-catalog">
+                <i class="fa-solid fa-boxes-stacked me-1"></i> 3. Admin: Products, Variants, Plans & Discounts
+            </button>
+        </li>
+        {% endif %}
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-finance">
+                <i class="fa-solid fa-chart-pie me-1"></i> 4. Finance Lead Executive Report
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- TAB 1: QUOTATIONS & SUBSCRIPTIONS PIPELINE -->
+        <div class="tab-pane fade show active" id="tab-subs">
+            <div class="row g-4">
+                {% if role != 'Customer' %}
+                <div class="col-lg-4">
+                    <div class="glass-card p-4">
+                        <h5 class="fw-bold mb-3 text-info"><i class="fa-solid fa-wand-magic-sparkles me-2"></i>New Quote from Template</h5>
+                        <p class="small text-secondary">Automatically loads variant pricing (+₹560 Odoo surcharge), 18% GST rules, and seat discounts.</p>
+                        <form action="/add_subscription" method="POST">
+                            <div class="mb-3">
+                                <label class="form-label small">Customer / Company Name</label>
+                                <input type="text" name="customer" class="form-control" placeholder="e.g. Skyline Enterprises" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small">Product & Variant</label>
+                                <select name="product_id" class="form-select">
+                                    {% for p in products %}
+                                    <option value="{{ p.id }}">{{ p.name }} — {{ p.variant }} (₹{{ p.sales_price + p.surcharge }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small">Recurring Plan</label>
+                                <select name="plan_id" class="form-select">
+                                    {% for pl in plans %}
+                                    <option value="{{ pl.id }}">{{ pl.name }} ({{ pl.period }} | Min Qty: {{ pl.min_qty }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-6">
+                                    <label class="form-label small">Seats / Quantity</label>
+                                    <input type="number" name="qty" class="form-control" value="5" min="1" required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small">Discount Code</label>
+                                    <input type="text" name="discount_code" class="form-control" placeholder="SEATS10 / WELCOME500">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-odoo w-100 py-2">
+                                <i class="fa-solid fa-paper-plane me-1"></i> Generate Subscription Quote
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="{% if role != 'Customer' %}col-lg-8{% else %}col-lg-12{% endif %}">
+                    <div class="glass-card p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h5 class="fw-bold mb-0">Live Subscription Lifecycle</h5>
+                                <small class="text-secondary">Stages: Draft ➔ Quotation ➔ Confirmed ➔ Active ➔ Closed</small>
+                            </div>
+                            {% if role != 'Customer' %}
+                            <form action="/billing_day" method="POST">
+                                <button type="submit" class="btn btn-teal btn-sm px-3 py-2">
+                                    <i class="fa-solid fa-bolt me-1"></i> Trigger "Billing Day" Batch Run
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-dark-custom align-middle">
+                                <thead>
+                                    <tr class="text-secondary small">
+                                        <th>Sub #</th>
+                                        <th>Customer</th>
+                                        <th>Product & Plan</th>
+                                        <th>Qty</th>
+                                        <th>Discount</th>
+                                        <th>Total (Inc. 18% Tax)</th>
+                                        <th>Stage Pipeline</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for s in subscriptions %}
+                                    <tr>
+                                        <td class="fw-bold text-info">{{ s.sub_number }}</td>
+                                        <td>{{ s.customer }}</td>
+                                        <td>
+                                            <div class="fw-semibold">{{ s.product }}</div>
+                                            <span class="badge bg-secondary bg-opacity-50">{{ s.plan }}</span>
+                                        </td>
+                                        <td>{{ s.qty }}</td>
+                                        <td class="text-success">-₹{{ s.discount }}</td>
+                                        <td class="fw-bold">₹{{ "{:,.2f}".format(s.total) }}</td>
+                                        <td>
+                                            {% if s.status == 'Active' %}
+                                                <span class="pipeline-step bg-success text-white"><i class="fa-solid fa-circle-check me-1"></i>Active</span>
+                                            {% elif s.status == 'Confirmed' %}
+                                                <span class="pipeline-step bg-primary text-white">Confirmed</span>
+                                            {% elif s.status == 'Quotation' %}
+                                                <span class="pipeline-step bg-warning text-dark">Quotation</span>
+                                            {% elif s.status == 'Closed' %}
+                                                <span class="pipeline-step bg-secondary text-white">Closed</span>
+                                            {% else %}
+                                                <span class="pipeline-step bg-light text-dark">{{ s.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if s.status != 'Closed' %}
+                                            <a href="/advance_sub/{{ s.id }}" class="btn btn-sm btn-outline-info">
+                                                Next Stage <i class="fa-solid fa-arrow-right ms-1"></i>
+                                            </a>
+                                            {% else %}
+                                            <span class="text-muted small">Completed</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: BILLING DAY & PAYMENT MATCHER -->
+        <div class="tab-pane fade" id="tab-billing">
+            <div class="glass-card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h5 class="fw-bold mb-1"><i class="fa-solid fa-file-invoice me-2 text-info"></i>Automated Invoices & Payment Reconciliation</h5>
+                        <p class="small text-secondary mb-0">Invoices progress from <strong>Draft ➔ Confirmed ➔ Paid</strong>. Zero duplicate billing guaranteed.</p>
+                    </div>
+                    <form action="/billing_day" method="POST">
+                        <button type="submit" class="btn btn-odoo">
+                            <i class="fa-solid fa-gears me-1"></i> Run Billing Day Auto-Generator
+                        </button>
+                    </form>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-dark-custom align-middle">
+                        <thead>
+                            <tr class="text-secondary small">
+                                <th>Invoice #</th>
+                                <th>Source Sub</th>
+                                <th>Customer</th>
+                                <th>Subtotal</th>
+                                <th>Discount</th>
+                                <th>Tax (18%)</th>
+                                <th>Total Due</th>
+                                <th>Due Date</th>
+                                <th>Status</th>
+                                <th>Record Payment / Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inv in invoices %}
+                            <tr>
+                                <td class="fw-bold text-warning">{{ inv.inv_number }}</td>
+                                <td><span class="badge bg-dark border border-secondary">{{ inv.sub_number }}</span></td>
+                                <td>{{ inv.customer }}</td>
+                                <td>₹{{ "{:,.2f}".format(inv.subtotal) }}</td>
+                                <td class="text-success">-₹{{ inv.discount }}</td>
+                                <td>₹{{ "{:,.2f}".format(inv.tax) }}</td>
+                                <td class="fw-bold text-white">₹{{ "{:,.2f}".format(inv.total) }}</td>
+                                <td>{{ inv.due }}</td>
+                                <td>
+                                    {% if inv.status == 'Paid' %}
+                                        <span class="badge bg-success"><i class="fa-solid fa-check me-1"></i>Paid ({{ inv.method }})</span>
+                                    {% elif inv.status == 'Confirmed' %}
+                                        <span class="badge bg-danger">Confirmed / Overdue</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Draft</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if inv.status != 'Paid' %}
+                                    <form action="/pay_invoice/{{ inv.id }}" method="POST" class="d-flex gap-2">
+                                        <select name="method" class="form-select form-select-sm" style="width: 130px;">
+                                            <option value="UPI / NEFT">UPI / NEFT</option>
+                                            <option value="Corporate Card">Corp Card</option>
+                                            <option value="Wire Transfer">Wire Transfer</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-sm {% if inv.status == 'Draft' %}btn-info{% else %}btn-success{% endif %}">
+                                            {% if inv.status == 'Draft' %}Confirm Invoice{% else %}Mark Paid{% endif %}
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <button onclick="window.print()" class="btn btn-sm btn-outline-light"><i class="fa-solid fa-print me-1"></i>Print Receipt</button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: ADMIN CATALOG -->
+        {% if role == 'Admin' %}
+        <div class="tab-pane fade" id="tab-catalog">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="glass-card p-4">
+                        <h5 class="fw-bold text-info mb-3">Launch New Product & Variant</h5>
+                        <form action="/add_product" method="POST">
+                            <div class="mb-3">
+                                <label class="form-label small">Product Name</label>
+                                <input type="text" name="name" class="form-control" placeholder="e.g. Brightloop CRM Pro" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small">Base Sales Price (₹)</label>
+                                <input type="number" name="sales_price" class="form-control" value="1800" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small">Brand Variant Name</label>
+                                <input type="text" name="variant" class="form-control" value="Odoo Brand (+₹560)">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small">Variant Surcharge (+₹)</label>
+                                <input type="number" name="surcharge" class="form-control" value="560">
+                            </div>
+                            <button type="submit" class="btn btn-odoo w-100">Launch Product</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="col-md-8">
+                    <div class="glass-card p-4 mb-4">
+                        <h5 class="fw-bold mb-3">Active Products & Brand Variants</h5>
+                        <table class="table table-dark-custom table-sm">
+                            <thead>
+                                <tr class="text-secondary">
+                                    <th>Product</th>
+                                    <th>Base Price</th>
+                                    <th>Cost Price</th>
+                                    <th>Variant Option</th>
+                                    <th>Final Unit Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in products %}
+                                <tr>
+                                    <td class="fw-semibold">{{ p.name }}</td>
+                                    <td>₹{{ p.sales_price }}</td>
+                                    <td class="text-secondary">₹{{ p.cost_price }}</td>
+                                    <td><span class="badge bg-info text-dark">{{ p.variant }}</span></td>
+                                    <td class="fw-bold text-success">₹{{ p.sales_price + p.surcharge }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="glass-card p-4">
+                        <h5 class="fw-bold mb-3">Admin Discount Rules (Auto-applied on Invoices)</h5>
+                        <table class="table table-dark-custom table-sm">
+                            <thead>
+                                <tr class="text-secondary">
+                                    <th>Code</th>
+                                    <th>Type</th>
+                                    <th>Value</th>
+                                    <th>Min Seats/Qty</th>
+                                    <th>Usage Limit</th>
+                                    <th>Valid Until</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for d in discounts %}
+                                <tr>
+                                    <td><code class="text-warning fw-bold">{{ d.code }}</code></td>
+                                    <td>{{ d.type }}</td>
+                                    <td>{% if d.type == 'Percentage' %}{{ d.value }}%{% else %}₹{{ d.value }}{% endif %}</td>
+                                    <td>{{ d.min_qty }} seats</td>
+                                    <td>{{ d.used }} / {{ d.max_uses }} used</td>
+                                    <td>{{ d.expiry }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
         {% endif %}
 
-        <div class="card bg-secondary text-white mb-4 p-3">
-            <h5>Add New Subscription</h5>
-            <form action="/add" method="POST" class="row g-3">
-                <div class="col-md-3">
-                    <input type="text" name="service_name" class="form-control" placeholder="Service (e.g. Netflix)" required>
+        <!-- TAB 4: FINANCE LEAD EXECUTIVE REPORT -->
+        <div class="tab-pane fade" id="tab-finance">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="glass-card p-4">
+                        <h5 class="fw-bold mb-3">Revenue Breakdown (Collected vs Outstanding)</h5>
+                        <canvas id="revenueChart" height="220"></canvas>
+                    </div>
                 </div>
-                <div class="col-md-2">
-                    <input type="text" name="category" class="form-control" placeholder="Category">
+                <div class="col-md-6">
+                    <div class="glass-card p-4">
+                        <h5 class="fw-bold mb-3">Subscription Pipeline Distribution</h5>
+                        <canvas id="pipelineChart" height="220"></canvas>
+                    </div>
                 </div>
-                <div class="col-md-2">
-                    <input type="number" step="0.01" name="cost" class="form-control" placeholder="Cost (₹)" required>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Customer Signup & Password Policy -->
+<div class="modal fade" id="authModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="fa-solid fa-lock text-info me-2"></i>Brightloop Customer Signup & Security Check</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/signup_check" method="POST">
+                <div class="modal-body">
+                    <p class="small text-secondary">Per Brightloop security policy: Password must be <strong>> 8 characters</strong> and include an <strong>Uppercase</strong>, <strong>Lowercase</strong>, and <strong>Special character</strong>.</p>
+                    <div class="mb-3">
+                        <label class="form-label small">Business Email (Unique per account)</label>
+                        <input type="email" name="email" class="form-control" placeholder="founder@smallshop.in" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Password</label>
+                        <input type="password" name="password" class="form-control" placeholder="Try Brightloop@2026" required>
+                    </div>
                 </div>
-                <div class="col-md-2">
-                    <select name="billing_cycle" class="form-select">
-                        <option value="Monthly">Monthly</option>
-                        <option value="Yearly">Yearly</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <input type="date" name="next_renewal_date" class="form-control" required>
-                </div>
-                <div class="col-md-1">
-                    <button type="submit" class="btn btn-primary w-100">Add</button>
+                <div class="modal-footer border-secondary">
+                    <button type="submit" class="btn btn-odoo w-100">Verify & Create Account</button>
                 </div>
             </form>
         </div>
-
-        <table class="table table-dark table-striped">
-            <thead>
-                <tr>
-                    <th>Service</th>
-                    <th>Category</th>
-                    <th>Cost</th>
-                    <th>Cycle</th>
-                    <th>Next Renewal</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for sub in subscriptions %}
-                <tr>
-                    <td>{{ sub.service_name }}</td>
-                    <td>{{ sub.category }}</td>
-                    <td>₹{{ sub.cost }}</td>
-                    <td>{{ sub.billing_cycle }}</td>
-                    <td>{{ sub.next_renewal_date }}</td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5" class="text-center text-muted">No subscriptions added yet.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
     </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const revCtx = document.getElementById('revenueChart');
+    if (revCtx) {
+        new Chart(revCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Collected Revenue (Paid)', 'Outstanding / Overdue'],
+                datasets: [{
+                    label: 'Amount in INR (₹)',
+                    data: [{{ metrics.paid_rev }}, {{ metrics.owed_rev }}],
+                    backgroundColor: ['#22c55e', '#f59e0b'],
+                    borderRadius: 8
+                }]
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#94a3b8' } }, x: { ticks: { color: '#94a3b8' } } } }
+        });
+    }
+
+    const pipeCtx = document.getElementById('pipelineChart');
+    if (pipeCtx) {
+        new Chart(pipeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Active', 'Quotation', 'Confirmed'],
+                datasets: [{
+                    data: [2, 1, 1],
+                    backgroundColor: ['#22c55e', '#f59e0b', '#38bdf8'],
+                    borderWidth: 0
+                }]
+            },
+            options: { plugins: { legend: { labels: { color: '#e2e8f0' } } } }
+        });
+    }
+</script>
 </body>
 </html>
